@@ -27,3 +27,4 @@ function middleware(req, res, next) {
         });
     }
 }
+exports.default = middleware;

@@ -1,8 +1,9 @@
 import express, { Request, Response } from "express";
-import User from "../db/database";
+import {User , Account } from "../db/database";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
+import middleware from "../middleware";
 
 
 const router = express.Router()
@@ -12,6 +13,12 @@ const signupSchema = z.object({
     password: z.string().min(6, "password must be atleast 6 characters long"),
     firstName: z.string().max(30),
     lastName: z.string().max(30)
+})
+
+const updateUser = z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    password: z.string().min(6).optional()
 })
 
 router.post("/signup",async (req: Request,res: Response)=>{
@@ -46,6 +53,11 @@ router.post("/signup",async (req: Request,res: Response)=>{
   })
 
   const userId = user._id;
+
+  await Account.create({
+    userId,
+    balance: 1 + Math.random() * 10000
+  })
 
   const token = jwt.sign(
   {
@@ -102,5 +114,45 @@ router.post("/signin", async (req: Request, res: Response) => {
   }
 });
 
+
+router.put("/",middleware,async (req: Request, res: Response) => {
+    const {success} = updateUser.safeParse(req.body)
+
+    if(!success){
+        res.status(400).json({
+            message: "error while updating information"
+        })
+        return
+    }
+
+    await User.updateOne({ _id: req.userId},req.body)
+
+    res.status(200).json({message: "user updated successfully"})
+})
+
+
+router.get("/bulk",middleware,async (req: Request, res: Response) => {
+    const filter = req.query.filter || "";
+
+    const response = await User.find({
+        $or:[{
+            firstName: {
+                "$regex": filter
+            }
+        },{
+            lastName: {
+                "$regex": filter
+            }
+        }]
+    })
+    res.json({
+            user: response.map(user => ({
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                _id: user._id
+            }))
+        })
+})
 
 export default router

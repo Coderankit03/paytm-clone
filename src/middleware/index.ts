@@ -25,3 +25,5 @@ function middleware(req: Request,res: Response,next: NextFunction){
         })
     }
 }
+
+export default middleware;
