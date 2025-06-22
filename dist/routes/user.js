@@ -101,7 +101,7 @@ router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function*
         res.status(500).json({ message: "Server error.", error });
     }
 }));
-router.put("/", middleware_1.default, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.put("/update", middleware_1.default, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { success } = updateUser.safeParse(req.body);
     if (!success) {
         res.status(400).json({
@@ -134,4 +134,15 @@ router.get("/bulk", middleware_1.default, (req, res) => __awaiter(void 0, void 0
         }))
     });
 }));
+router.get("/me", middleware_1.default, (req, res) => {
+    if (!req.userId) {
+        res.status(400).json({
+            message: "please signin"
+        });
+        return;
+    }
+    res.status(200).json({
+        userId: req.userId
+    });
+});
 exports.default = router;

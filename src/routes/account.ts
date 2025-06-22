@@ -3,52 +3,68 @@ import { Account } from "../db/database";
 import middleware from "../middleware";
 import mongoose from "mongoose";
 
-const router = express.Router()
+const router = express.Router();
 
-router.get("/balance",middleware,async (req: Request,res: Response) => {
-    const account = await Account.findOne({
-        userId: req.userId
-    })
+router.get("/balance", middleware, async (req: Request, res: Response) => {
+  const account = await Account.findOne({
+    userId: req.userId,
+  });
 
-    res.status(200).json({
-        balance:account?.balance
-    })
-})
+  res.status(200).json({
+    balance: account?.balance,
+  });
+});
 
-router.post("/transfer",middleware,async (req: Request,res: Response) => {
-    const session = await mongoose.startSession()
-    session.startTransaction()
+router.post("/transfer", middleware, async (req: Request, res: Response) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    const {to, amount} = req.body;
+  const { to, amount } = req.body;
+  const toString = String(to)
 
-    const fromAccount = await Account.findOne({userId: req.userId}).session(session) as {balance: Number}
+  if(!mongoose.Types.ObjectId.isValid(toString)){
+    await session.abortTransaction();
+    res.status(400).json({ message: "Invalid user ID format" });
+    return
+  }
 
-    if(!fromAccount || fromAccount.balance<amount){
-        await session.abortTransaction()
-        res.status(400).json({
-            message: "Insufficient balance"
-        })
-        return
-    }
+  const toObjectId = new mongoose.Types.ObjectId(toString);
 
-    const toAccount = await Account.findOne({userId: to}).session(session)
-    if(!toAccount){
-        res.status(400).json({
-            message: "invalid user"
-        })
-        return
-    }
+  const fromAccount = (await Account.findOne({ userId: req.userId }).session(
+    session
+  )) as { balance: Number };
 
-    //update balance in the acconts of both users
-    await Account.updateOne({userId: req.userId},{$inc:{balance: -amount}}).session(session)
-    await Account.updateOne({userId: to},{$inc:{balance: amount}}).session(session)
+  if (!fromAccount || fromAccount.balance < amount) {
+    await session.abortTransaction();
+    res.status(400).json({
+      message: "Insufficient balance",
+    });
+    return;
+  }
 
-    await session.commitTransaction()
+  const toAccount = await Account.findOne({ userId: toObjectId }).session(session);
+  if (!toAccount) {
+    await session.abortTransaction();
+    res.status(400).json({
+      message: "invalid user",
+    });
+    return;
+  }
 
-    res.status(200).json({
-        message: "transaction successful"
-    })
+  //update balance in the acconts of both users
+  await Account.updateOne(
+    { userId: req.userId },
+    { $inc: { balance: -amount } }
+  ).session(session);
+  await Account.updateOne(
+    { userId: to },
+    { $inc: { balance: amount } }
+  ).session(session);
 
-})
-export default router
+  await session.commitTransaction();
 
+  res.status(200).json({
+    message: "transaction successful",
+  });
+});
+export default router;

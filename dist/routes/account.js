@@ -19,28 +19,36 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const router = express_1.default.Router();
 router.get("/balance", middleware_1.default, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const account = yield database_1.Account.findOne({
-        userId: req.userId
+        userId: req.userId,
     });
     res.status(200).json({
-        balance: account === null || account === void 0 ? void 0 : account.balance
+        balance: account === null || account === void 0 ? void 0 : account.balance,
     });
 }));
 router.post("/transfer", middleware_1.default, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const session = yield mongoose_1.default.startSession();
     session.startTransaction();
     const { to, amount } = req.body;
-    const fromAccount = yield database_1.Account.findOne({ userId: req.userId }).session(session);
+    const toString = String(to);
+    if (!mongoose_1.default.Types.ObjectId.isValid(toString)) {
+        yield session.abortTransaction();
+        res.status(400).json({ message: "Invalid user ID format" });
+        return;
+    }
+    const toObjectId = new mongoose_1.default.Types.ObjectId(toString);
+    const fromAccount = (yield database_1.Account.findOne({ userId: req.userId }).session(session));
     if (!fromAccount || fromAccount.balance < amount) {
         yield session.abortTransaction();
         res.status(400).json({
-            message: "Insufficient balance"
+            message: "Insufficient balance",
         });
         return;
     }
-    const toAccount = yield database_1.Account.findOne({ userId: to }).session(session);
+    const toAccount = yield database_1.Account.findOne({ userId: toObjectId }).session(session);
     if (!toAccount) {
+        yield session.abortTransaction();
         res.status(400).json({
-            message: "invalid user"
+            message: "invalid user",
         });
         return;
     }
@@ -49,7 +57,7 @@ router.post("/transfer", middleware_1.default, (req, res) => __awaiter(void 0, v
     yield database_1.Account.updateOne({ userId: to }, { $inc: { balance: amount } }).session(session);
     yield session.commitTransaction();
     res.status(200).json({
-        message: "transaction successful"
+        message: "transaction successful",
     });
 }));
 exports.default = router;

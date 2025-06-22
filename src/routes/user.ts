@@ -115,7 +115,7 @@ router.post("/signin", async (req: Request, res: Response) => {
 });
 
 
-router.put("/",middleware,async (req: Request, res: Response) => {
+router.put("/update",middleware,async (req: Request, res: Response) => {
     const {success} = updateUser.safeParse(req.body)
 
     if(!success){
@@ -153,6 +153,18 @@ router.get("/bulk",middleware,async (req: Request, res: Response) => {
                 _id: user._id
             }))
         })
+})
+
+router.get("/me",middleware, (req: Request, res: Response)=>{
+  if(!req.userId){
+    res.status(400).json({
+      message: "please signin"
+    })
+    return
+  }
+  res.status(200).json({
+    userId: req.userId
+  })
 })
 
 export default router
